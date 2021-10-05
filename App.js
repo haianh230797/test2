@@ -1,5 +1,5 @@
-import React, {useEffect, useState} from 'react';
-import {StyleSheet, View, FlatList, Text, TouchableOpacity} from 'react-native';
+import React, {Component} from 'react';
+import {View, FlatList, Text, TouchableOpacity} from 'react-native';
 import MapboxGL from '@react-native-mapbox-gl/maps';
 import province from './listProvince';
 import vietnam from './mapsGEOJSON/vietnam';
@@ -24,57 +24,95 @@ const stylesProvinceIsChoice = {
   },
 };
 
-const App = () => {
-  const [showListProvince, setShowListProvince] = useState(false);
-  const [provinceDisplay, setProvinceDisplay] = useState({});
-  const [provinceMode, setProvinceMode] = useState(false);
-  const [coordinate, setCoordinate] = useState({
-    x: 105.517598,
-    y: 16.902831,
-  });
-  const [zoomLevels, setZoomLevels] = useState(4.8);
-  const [disableSwipe, setDisableSwipe] = useState('auto');
-
-  useEffect(() => {
-    if (Object.keys(provinceDisplay).length === 0) {
-      setProvinceMode(false);
-    } else {
-      setProvinceMode(true);
-    }
-  }, [provinceDisplay]);
-
-  useEffect(() => {
+class App extends Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      showListProvince: false,
+      provinceDisplay: {},
+      provinceMode: false,
+      coordinate: {
+        x: 105.517598,
+        y: 16.902831,
+      },
+      zoomLevels: 4.8,
+      disableSwipe: 'auto',
+    };
+  }
+  componentDidMount() {
     MapboxGL.setTelemetryEnabled(false);
-  }, []);
+    if (Object.keys(this.state.provinceDisplay).length === 0) {
+      this.setState({...this.state, provinceMode: false});
+    } else {
+      this.setState({...this.state, provinceMode: true});
+    }
+  }
 
-  const renderItem = ({item}) => <Item item={item} />;
+  async componentDidUpdate(prevProps, prevState) {
+    if (prevState.provinceDisplay !== this.state.provinceDisplay) {
+      if (Object.keys(this.state.provinceDisplay).length === 0) {
+        this.setState({...this.state, provinceMode: false});
+      } else {
+        this.setState({...this.state, provinceMode: true});
+      }
+    }
+  }
 
-  const Item = ({item}) => {
+  render() {
+    const renderItem = ({item}) => <Item item={item} />;
+
+    const Item = ({item}) => {
+      return (
+        <TouchableOpacity
+          style={styles.itemProvince}
+          onPress={() => {
+            this.setState({
+              ...this.state,
+              provinceDisplay: item,
+              showListProvince: false,
+              coordinate: {x: item.x, y: item.y},
+              zoomLevels: 7,
+              disableSwipe: 'none',
+            });
+          }}>
+          <Text>{item.name}</Text>
+        </TouchableOpacity>
+      );
+    };
+
     return (
-      <TouchableOpacity
-        style={styles.itemProvince}
-        onPress={() => {
-          setProvinceDisplay(item);
-          setShowListProvince(false);
-          setCoordinate({x: item.x, y: item.y});
-          setZoomLevels(7);
-          setDisableSwipe('none');
-        }}>
-        <Text>{item.name}</Text>
-      </TouchableOpacity>
-    );
-  };
-
-  return (
-    <View style={styles.page}>
-      <View style={styles.container} pointerEvents={disableSwipe}>
-        <MapboxGL.MapView style={styles.map}>
-          <MapboxGL.Camera
-            centerCoordinate={[coordinate.x, coordinate.y]}
-            zoomLevel={zoomLevels}
-          />
-          {provinceDisplay && provinceDisplay.shape ? (
-            <>
+      <View style={styles.page}>
+        <View style={styles.container} pointerEvents={this.state.disableSwipe}>
+          <MapboxGL.MapView style={styles.map}>
+            <MapboxGL.Camera
+              centerCoordinate={[
+                this.state.coordinate.x,
+                this.state.coordinate.y,
+              ]}
+              zoomLevel={this.state.zoomLevels}
+            />
+            {this.state.provinceDisplay && this.state.provinceDisplay.shape ? (
+              <>
+                <MapboxGL.ShapeSource
+                  id={'vietnam'}
+                  lineMetrics={true}
+                  shape={vietnam}>
+                  <MapboxGL.LineLayer
+                    id={'vietnam'}
+                    style={stylesProvince.lineLayer}
+                  />
+                </MapboxGL.ShapeSource>
+                <MapboxGL.ShapeSource
+                  id={this.state.provinceDisplay.id.toString()}
+                  lineMetrics={true}
+                  shape={this.state.provinceDisplay.shape}>
+                  <MapboxGL.LineLayer
+                    id={this.state.provinceDisplay.id.toString()}
+                    style={stylesProvinceIsChoice.lineLayer}
+                  />
+                </MapboxGL.ShapeSource>
+              </>
+            ) : (
               <MapboxGL.ShapeSource
                 id={'vietnam'}
                 lineMetrics={true}
@@ -84,66 +122,55 @@ const App = () => {
                   style={stylesProvince.lineLayer}
                 />
               </MapboxGL.ShapeSource>
-              <MapboxGL.ShapeSource
-                id={provinceDisplay.id.toString()}
-                lineMetrics={true}
-                shape={provinceDisplay.shape}>
-                <MapboxGL.LineLayer
-                  id={provinceDisplay.id.toString()}
-                  style={stylesProvinceIsChoice.lineLayer}
-                />
-              </MapboxGL.ShapeSource>
-            </>
-          ) : (
-            <MapboxGL.ShapeSource
-              id={'vietnam'}
-              lineMetrics={true}
-              shape={vietnam}>
-              <MapboxGL.LineLayer
-                id={'vietnam'}
-                style={stylesProvince.lineLayer}
-              />
-            </MapboxGL.ShapeSource>
-          )}
-        </MapboxGL.MapView>
-      </View>
-      <View style={styles.dropDownBox}>
-        <TouchableOpacity
-          style={styles.dropDownTitle}
-          onPress={() => {
-            setShowListProvince(!showListProvince);
-          }}>
-          <Text style={styles.dropDownText}>
-            {provinceMode ? provinceDisplay.name : 'Choice province'}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.dropDownClose}
-          onPress={() => {
-            setZoomLevels(5);
-            setCoordinate({x: 105.517598, y: 15.872831});
-            setShowListProvince(false);
-            setProvinceDisplay({});
-            setDisableSwipe('auto');
-          }}>
-          <Text style={styles.closeWatchProvince}>X</Text>
-        </TouchableOpacity>
-      </View>
-
-      {showListProvince === true ? (
-        <View style={styles.listProvince}>
-          <FlatList
-            contentContainerStyle={{paddingBottom: 30}}
-            data={province}
-            renderItem={renderItem}
-            keyExtractor={(item) => item.id}
-          />
+            )}
+          </MapboxGL.MapView>
         </View>
-      ) : (
-        <View />
-      )}
-    </View>
-  );
-};
+        <View style={styles.dropDownBox}>
+          <TouchableOpacity
+            style={styles.dropDownTitle}
+            onPress={() => {
+              this.setState({
+                ...this.state,
+                showListProvince: !this.state.showListProvince,
+              });
+            }}>
+            <Text style={styles.dropDownText}>
+              {this.state.provinceMode
+                ? this.state.provinceDisplay.name
+                : 'Choice province'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.dropDownClose}
+            onPress={() => {
+              this.setState({
+                ...this.state,
+                provinceDisplay: {},
+                showListProvince: false,
+                coordinate: {x: 105.517598, y: 15.872831},
+                zoomLevels: 5,
+                disableSwipe: 'auto',
+              });
+            }}>
+            <Text style={styles.closeWatchProvince}>X</Text>
+          </TouchableOpacity>
+        </View>
+
+        {this.state.showListProvince === true ? (
+          <View style={styles.listProvince}>
+            <FlatList
+              contentContainerStyle={{paddingBottom: 30}}
+              data={province}
+              renderItem={renderItem}
+              keyExtractor={(item) => item.id}
+            />
+          </View>
+        ) : (
+          <View />
+        )}
+      </View>
+    );
+  }
+}
 
 export default App;
